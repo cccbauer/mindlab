@@ -1,0 +1,19 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Test/tooling caches
+.pytest_cache/
+
+# Manual debug-script output (per-run breath calibration logs, not source)
+debug_logs/
+
+# macOS
+.DS_Store

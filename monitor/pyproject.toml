@@ -1,0 +1,30 @@
+[project]
+name = "mindlab-monitor"
+version = "0.1.0"
+description = "Meditation stability monitor (camera + mic based) for the mindlab app"
+readme = "README.md"
+requires-python = "==3.12.*"
+dependencies = [
+    "flet>=0.80,<0.90",
+    "flet-audio>=0.86.5",
+    "numpy>=1.26",
+]
+
+[project.optional-dependencies]
+desktop = [
+    "mediapipe>=1.0.0",
+    "opencv-python>=4.10",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+]
+
+[tool.flet.app]
+path = "src"
+module = "mindlab_monitor/app"
+
+[build-system]
+requires = ["uv_build>=0.10.4,<0.11.0"]
+build-backend = "uv_build"
