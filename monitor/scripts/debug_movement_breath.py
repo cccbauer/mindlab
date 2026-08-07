@@ -51,7 +51,9 @@ def main() -> None:
     log_path = _LOG_DIR / f"breath_{time.strftime('%Y%m%dT%H%M%S')}.csv"
     log_file = log_path.open("w", newline="")
     log_writer = csv.writer(log_file)
-    log_writer.writerow(["phase", "elapsed_s", "stillness_score", "breath_bpm", "raw_breath_signal"])
+    log_writer.writerow(
+        ["phase", "elapsed_s", "stillness_score", "breath_bpm", "raw_breath_signal", "breath_window_seconds"]
+    )
     print(f"Logging to {log_path}")
 
     cap = cv2.VideoCapture(0)
@@ -92,7 +94,14 @@ def main() -> None:
                 print("Timer reset to 0 — breathe normally now.")
 
             log_writer.writerow(
-                [phase, f"{elapsed:.2f}", tick.stillness_score, tick.breath_bpm, tick.raw_breath_signal]
+                [
+                    phase,
+                    f"{elapsed:.2f}",
+                    tick.stillness_score,
+                    tick.breath_bpm,
+                    tick.raw_breath_signal,
+                    tick.breath_window_seconds,
+                ]
             )
 
             h, w = frame.shape[:2]
@@ -131,6 +140,15 @@ def main() -> None:
                 )
                 cv2.putText(
                     frame, f"Breath: {breath_text}", (20, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 200, 0), 2
+                )
+                cv2.putText(
+                    frame,
+                    f"Window: {tick.breath_window_seconds:.0f}s",
+                    (20, 120),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    (180, 180, 180),
+                    2,
                 )
 
             chart = np.zeros((_CHART_HEIGHT, w, 3), dtype=np.uint8)

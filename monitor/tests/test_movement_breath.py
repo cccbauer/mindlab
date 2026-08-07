@@ -48,8 +48,12 @@ def test_large_diff_outside_roi_lowers_stillness_score():
 def test_breath_bpm_recovers_known_synthetic_frequency():
     settings = MotionSettings(
         downscale_width=_FRAME_W,
-        breath_window_seconds=10.0,
-        breath_min_seconds_before_estimate=6.0,
+        # Pin the adaptive window to a fixed 10s (min == max) so these tests
+        # stay deterministic and fast rather than exercising the adaptation
+        # logic itself (covered separately).
+        breath_window_min_seconds=10.0,
+        breath_window_max_seconds=10.0,
+        breath_min_span_fraction=0.6,
         breath_update_seconds=1.0,
         breath_min_bpm=3.0,
         breath_max_bpm=30.0,
@@ -76,8 +80,12 @@ def test_breath_bpm_recovers_known_synthetic_frequency():
 def test_movement_burst_does_not_corrupt_breath_estimate():
     settings = MotionSettings(
         downscale_width=_FRAME_W,
-        breath_window_seconds=10.0,
-        breath_min_seconds_before_estimate=6.0,
+        # Pin the adaptive window to a fixed 10s (min == max) so these tests
+        # stay deterministic and fast rather than exercising the adaptation
+        # logic itself (covered separately).
+        breath_window_min_seconds=10.0,
+        breath_window_max_seconds=10.0,
+        breath_min_span_fraction=0.6,
         breath_update_seconds=1.0,
         breath_min_bpm=3.0,
         breath_max_bpm=30.0,
@@ -117,3 +125,46 @@ def test_movement_burst_does_not_corrupt_breath_estimate():
         t += dt
 
     assert abs(last_tick.breath_bpm - stable_bpm) <= 1.0
+
+
+def test_window_grows_for_slow_stable_breathing_then_shrinks_on_movement():
+    settings = MotionSettings(
+        downscale_width=_FRAME_W,
+        breath_window_min_seconds=10.0,
+        breath_window_max_seconds=30.0,
+        breath_window_adapt_step_seconds=5.0,
+        breath_window_grow_bpm_threshold=8.0,
+        breath_window_shrink_bpm_threshold=14.0,
+        breath_window_grow_min_stillness=85.0,
+        breath_min_span_fraction=0.6,
+        breath_update_seconds=1.0,
+        breath_min_bpm=2.0,
+        breath_max_bpm=30.0,
+        movement_sensitivity=8.0,
+    )
+    tracker = MotionTracker(settings)
+    roi = compute_chest_roi(_FACE_BBOX, _FRAME_W, _FRAME_H, settings)
+    target_hz = 4.0 / 60.0  # slow, 4 breaths/min — should earn a grown window
+    dt = 0.1
+
+    def make_frame(t: float, disturb: bool = False) -> np.ndarray:
+        frame = _flat_frame(128)
+        intensity = int(128 + 40 * math.sin(2 * math.pi * target_hz * t))
+        frame[roi.y0 : roi.y1, roi.x0 : roi.x1] = intensity
+        if disturb:
+            frame[0:40, 0:40] = 250 if int(t / dt) % 2 == 0 else 5
+        return frame
+
+    t, last_tick = 0.0, None
+    for _ in range(500):  # 50s of slow, stable breathing
+        last_tick = tracker.update(make_frame(t), _FACE_BBOX, timestamp=t)
+        t += dt
+
+    assert last_tick.breath_window_seconds > settings.breath_window_min_seconds
+    grown_window = last_tick.breath_window_seconds
+
+    for _ in range(100):  # 10s of movement disturbance
+        last_tick = tracker.update(make_frame(t, disturb=True), _FACE_BBOX, timestamp=t)
+        t += dt
+
+    assert last_tick.breath_window_seconds < grown_window

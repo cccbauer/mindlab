@@ -60,6 +60,21 @@ Added to `scripts/debug_movement_breath.py` for doing real paced-breathing valid
 
 Also, separately: found and cleaned up **9 orphaned background processes** accumulated from repeated `kill $PID`-on-the-wrapper-process test restarts (each still holding the camera open, one with 12+ minutes of accumulated CPU time) — `uv run`/`flet run` spawn child processes that don't die with the parent. Added `page.on_close` + `page.on_disconnect` + `atexit` shutdown hooks so the app itself reliably releases the camera on quit, independent of how it's closed.
 
+## 2026-08-07 — First real paced-breathing validation, and an adaptive window
+
+Ran a real paced-breathing test via the calibration tooling above: 0-60s targeting 8bpm, 60-120s targeting 17bpm, 120-180s targeting 3bpm (self-counted). Read the logged CSV against the reported schedule:
+
+- 8bpm target → settled at **8.4bpm**. 17bpm target → settled at **16.8bpm**. Both within ~5%, once each segment had ~35-50s to settle — the core algorithm is solid for normal/moderate breathing rates.
+- 3bpm target → **never converged**, bounced between 7.2 and 21.6bpm the whole segment. Root cause: at 3 breaths/min, one cycle is 20s, and the (then-fixed) 50s window only covers 2.5 cycles — not enough for the FFT to resolve reliably, made worse by 3.0bpm sitting exactly on the search band's lower edge (`breath_min_bpm`), where FFT peak-picking is least reliable. Also visible: brief spurious jumps right after each target-rate change (expected — a fixed-window FFT can't distinguish "two rates mixed in one window" from a genuine new rate until the old one ages out; much less of a concern for real gradually-changing breathing than this artificial abrupt-switching test).
+
+Fix needed a longer window for slow breathing, but a longer window always costs first-reading latency. Proposed a fixed longer window (90s); user pushed back with a better idea — **make the window adaptive**: start at a fast/responsive minimum, only grow it once a reading comes back both slow *and* stable (earned, not default), and shrink it quickly again if breathing speeds back up or stillness drops (movement, discomfort, coming out of the session). Implemented as `MotionTracker._adapt_window`, re-evaluated every `breath_update_seconds`:
+
+- Grows toward `breath_window_max_seconds` (100s) only when the latest estimate is slow (`< breath_window_grow_bpm_threshold`, 8bpm) *and* short-term stillness is comfortably high (`>= breath_window_grow_min_stillness`, 85 — stricter than the sample-admission gate, since growing is a bigger commitment than admitting one sample).
+- Shrinks back toward `breath_window_min_seconds` (45s) immediately if stillness drops below the admission gate, or the estimate comes back fast (`> breath_window_shrink_bpm_threshold`, 14bpm).
+- The "enough data yet?" check (`breath_min_span_fraction`, 0.7) now scales with the *current* window instead of a fixed constant, so it tightens/loosens as the window moves.
+
+Net effect: typical/faster breathers get the original fast ~30s-ish first reading; someone settling into slow, stable meditative breathing gradually earns a longer, more accurate window; any sign of movement or speeding back up snaps the window back down for responsiveness. Added `test_window_grows_for_slow_stable_breathing_then_shrinks_on_movement` and exposed `breath_window_seconds` on `MotionTick` (now shown on-screen and logged in the debug tool) so the adaptation is directly observable during the next real test.
+
 ## Status
 
-Phase 1 core loop (camera → calibration → session → summary → history) works end-to-end. Breath-rate estimation validated against a manual count (9.6 vs. 10 actual) with the movement-burst-corruption issue fixed. Still iterating on real-world accuracy via the calibration debug tool before calling breath sensing "done." Phase 2 (mobile TFLite backend) not started.
+Phase 1 core loop (camera → calibration → session → summary → history) works end-to-end. Breath-rate estimation validated against a real paced-breathing test for normal/moderate rates (8bpm→8.4, 17bpm→16.8); slow-breathing accuracy (~3bpm) fix (adaptive window) implemented but not yet re-validated against real data. Phase 2 (mobile TFLite backend) not started.

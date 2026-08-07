@@ -52,6 +52,7 @@ class MotionTick:
     breath_bpm: float | None  # None until enough signal has accumulated
     chest_roi: ChestRoiPixels
     raw_breath_signal: float | None  # this tick's raw signal sample, for diagnostics/plotting
+    breath_window_seconds: float  # current adaptive analysis window, for diagnostics
 
 
 class MotionTracker:
@@ -66,6 +67,9 @@ class MotionTracker:
         self._last_breath_estimate_ts: float = 0.0
         self._last_breath_bpm: float | None = None
         self._smoothed_bbox: BBox | None = None
+        # Starts at the minimum — fast first reading — and only grows once
+        # earned (see _adapt_window).
+        self._window_seconds: float = settings.breath_window_min_seconds
 
     def _smoothed_face_bbox(self, face_bbox: BBox | None) -> BBox | None:
         # Face-landmark detection jitters slightly frame to frame even when
@@ -149,7 +153,11 @@ class MotionTracker:
             # invalidate everything already collected.
             if roi_small is not None and stillness_score >= self._settings.breath_quality_min_stillness:
                 self._breath_buffer.append((ts, raw_breath_signal))
-                self._trim(self._breath_buffer, self._settings.breath_window_seconds)
+            # Always retrim to the *current* adaptive window, even on ticks
+            # that didn't append (e.g. a movement burst just shrank the
+            # window — older data beyond the new, shorter span should drop
+            # out on the very next opportunity, not linger).
+            self._trim(self._breath_buffer, self._window_seconds)
 
         self._prev_gray = gray
 
@@ -162,6 +170,7 @@ class MotionTracker:
             # it out or replacing it with movement-corrupted noise.
             if new_estimate is not None:
                 self._last_breath_bpm = new_estimate
+            self._adapt_window(new_estimate, stillness_score)
 
         return MotionTick(
             timestamp=ts,
@@ -169,6 +178,7 @@ class MotionTracker:
             breath_bpm=self._last_breath_bpm,
             chest_roi=roi if roi is not None else ChestRoiPixels(0, 0, 0, 0),
             raw_breath_signal=raw_breath_signal,
+            breath_window_seconds=self._window_seconds,
         )
 
     @staticmethod
@@ -179,12 +189,35 @@ class MotionTracker:
         while buf and buf[0][0] < cutoff:
             buf.popleft()
 
+    def _adapt_window(self, new_estimate: float | None, stillness_score: float | None) -> None:
+        """Grow the analysis window only once earned (a confident, slow,
+        stable reading); shrink it quickly on anything suggesting the
+        window's assumption of "steady, slow breathing" no longer holds —
+        movement/discomfort, or breathing that's sped back up (e.g. coming
+        out of the session)."""
+        s = self._settings
+        step = s.breath_window_adapt_step_seconds
+
+        if stillness_score is not None and stillness_score < s.breath_quality_min_stillness:
+            self._window_seconds = max(s.breath_window_min_seconds, self._window_seconds - step)
+            return
+        if new_estimate is not None and new_estimate > s.breath_window_shrink_bpm_threshold:
+            self._window_seconds = max(s.breath_window_min_seconds, self._window_seconds - step)
+            return
+        if (
+            new_estimate is not None
+            and new_estimate < s.breath_window_grow_bpm_threshold
+            and stillness_score is not None
+            and stillness_score >= s.breath_window_grow_min_stillness
+        ):
+            self._window_seconds = min(s.breath_window_max_seconds, self._window_seconds + step)
+
     def _estimate_breath_bpm(self) -> float | None:
         s = self._settings
         if len(self._breath_buffer) < 2:
             return None
         span = self._breath_buffer[-1][0] - self._breath_buffer[0][0]
-        if span < s.breath_min_seconds_before_estimate:
+        if span < s.breath_min_span_fraction * self._window_seconds:
             return None
 
         timestamps = np.array([t for t, _ in self._breath_buffer])

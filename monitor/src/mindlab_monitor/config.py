@@ -57,8 +57,28 @@ class MotionSettings:
     # but jitterier. Reduces both visible ROI-box shake and noise it would
     # otherwise inject into the breath signal.
     bbox_smoothing_alpha: float = 0.25
-    breath_window_seconds: float = 50.0
-    breath_min_seconds_before_estimate: float = 35.0
+    # Adaptive breath-analysis window: starts at the minimum (fast first
+    # reading, matches typical/faster breathing well) and only grows toward
+    # the maximum once a reading comes back both slow and stable — slow
+    # breathing (e.g. ~3bpm) needs more cycles in the window to resolve
+    # reliably (2.5 cycles in a 50s window proved unreliable in testing; ~5
+    # cycles in 100s did much better). Shrinks back toward the minimum if
+    # breathing speeds up or stillness drops (movement, discomfort, coming
+    # out of the session), so it stays responsive to real change instead of
+    # dragging a slow window through a fast-changing period.
+    breath_window_min_seconds: float = 45.0
+    breath_window_max_seconds: float = 100.0
+    breath_window_adapt_step_seconds: float = 8.0
+    breath_window_grow_bpm_threshold: float = 8.0  # estimate below this + good stillness -> grow
+    breath_window_shrink_bpm_threshold: float = 14.0  # estimate above this -> shrink
+    # Stricter than breath_quality_min_stillness below — growing the window
+    # is a bigger commitment (slower to reverse) than just admitting one
+    # sample, so it needs a higher bar.
+    breath_window_grow_min_stillness: float = 85.0
+    # Fraction of the *current* adaptive window required as span before
+    # trusting an estimate (replaces a fixed seconds value since the window
+    # itself now moves).
+    breath_min_span_fraction: float = 0.7
     breath_update_seconds: float = 5.0
     breath_min_bpm: float = 3.0
     breath_max_bpm: float = 30.0
