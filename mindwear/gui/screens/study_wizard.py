@@ -90,9 +90,24 @@ class StudyWizard:
             ], spacing=st.GAP, wrap=True))
         self.f_calib_rest = ft.TextField(label="Rest per cue (s)", value=str(int(cal["rest_sec"])), width=140)
         self.f_calib_cycles = ft.TextField(label="Cycles", value=str(int(cal["cycles"])), width=100)
-        self.f_calib_self = ft.TextField(label="Self-reference block (s)", value=str(int(cal["self_sec"])), width=200)
-        self.f_calib_flanker = ft.TextField(label="Flanker block (s)", value=str(int(cal["flanker_sec"])), width=170)
-        self.f_calib_noting = ft.TextField(label="Noting block (s)", value=str(int(cal["noting_sec"])), width=170)
+        is_induction = cal.get("type", "induction") == "induction"
+        self.f_calib_self = ft.TextField(label="Self-reference block (s)", value=str(int(cal["self_sec"])),
+                                         width=200, visible=is_induction)
+        self.f_calib_flanker = ft.TextField(label="Flanker block (s)", value=str(int(cal["flanker_sec"])),
+                                            width=170, visible=is_induction)
+        self.f_calib_noting = ft.TextField(label="Noting block (s)", value=str(int(cal["noting_sec"])),
+                                           width=170, visible=not is_induction)
+
+        def _on_calib_type_change(_):
+            induction = self.f_calib_type.value == "induction"
+            self.f_calib_self.visible = induction
+            self.f_calib_flanker.visible = induction
+            self.f_calib_noting.visible = not induction
+            self.f_calib_self.update()
+            self.f_calib_flanker.update()
+            self.f_calib_noting.update()
+
+        self.f_calib_type.on_change = _on_calib_type_change
 
         def card(title, *children):
             return ft.Container(
