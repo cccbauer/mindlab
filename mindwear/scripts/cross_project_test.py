@@ -6,8 +6,9 @@ import numpy as np
 from scipy.stats import pearsonr
 warnings.filterwarnings("ignore")
 
-FP = Path("/Users/cccbauer/Documents/GitHub/dmnelf/analysis/fingerprint"); NF = FP/"mindwear"
-DATA = Path("/Users/cccbauer/Documents/GitHub/dmnelf/data")
+NF = Path(__file__).resolve().parent.parent  # mindwear/, now in the mindlab repo
+FP = NF.parents[1] / "dmnelf" / "analysis" / "fingerprint"  # sibling dmnelf repo checkout
+DATA = NF.parents[1] / "dmnelf" / "data"
 sys.path.insert(0, str(NF)); sys.path.insert(0, str(FP/"efp_meirhasson"/"scripts"))
 from stockwell import stockwell_power
 import mne

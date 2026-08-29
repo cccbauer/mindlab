@@ -2,27 +2,30 @@
 
 Real-time EEG neurofeedback on the Emotiv EPOC X (or the 32-channel research cap), running the
 frozen DMNELF **EFP** decoder to produce the **PDA = CEN − DMN** signal and drive PsychoPy
-feedback. Deploys the decoder validated in
-[`../efp_meirhasson/DEPLOY_EPOC.md`](../efp_meirhasson/DEPLOY_EPOC.md) (EPOC-12 montage retains
-~92% of clean-CEN decoding).
+feedback. Deploys the decoder validated in `efp_meirhasson/DEPLOY_EPOC.md` in the sibling
+[dmnelf](https://github.com/cccbauer/dmnelf) repo (EPOC-12 montage retains ~92% of clean-CEN
+decoding).
+
+Part of the [mindlab](https://github.com/cccbauer/mindlab) monorepo — see the repo root for the
+shared workspace setup (Python 3.12, Flet 0.86.5, managed with `uv`).
 
 ## Install
 
-Requires [conda](https://conda-forge.org/download/) (Miniconda / Miniforge / Anaconda).
+Requires [uv](https://docs.astral.sh/uv/).
 
 ```bash
-cd analysis/fingerprint/mindwear
-./install.sh                 # creates the `mindwear` conda env from environment.yml + verifies
-conda activate mindwear
-python launch_gui.py
+cd mindwear
+uv sync
+uv run python launch_gui.py
 ```
 
-`./install.sh --force` recreates an existing env; `--name NAME` uses a different env name. To set
-up manually instead of the script:
+Or from the mindlab repo root, `uv sync` sets up every member project (including this one) at
+once. To set up manually instead:
 
 ```bash
-conda env create -f environment.yml   # from analysis/fingerprint/mindwear
-conda activate mindwear
+uv venv --python 3.12   # from mindwear/
+uv pip sync pyproject.toml
+source .venv/bin/activate
 python launch_gui.py
 ```
 
@@ -51,9 +54,9 @@ with per-run CSV logging. It drives the headless `session_engine.SessionEngine`;
 PsychoPy stimulus opens on the main thread via a dispatcher (the macOS-safe Flet+PsychoPy pattern).
 
 ```bash
-conda activate mindwear                 # env with flet, flet-charts, numpy, scipy, mne, psychopy
-python mindwear/launch_gui.py           # from analysis/fingerprint/
-#   or:  python -m mindwear.gui.app
+cd mindwear                             # from the mindlab repo root
+uv run python launch_gui.py
+#   or:  uv run python -m gui.app
 ```
 Flow: **Study Manager → Study Editor** (Source / Decoder / Session / Feedback tabs) **→ Session
 Runner** (contact-quality preview → Start calibration → calibration review → participant ready
@@ -61,10 +64,10 @@ screen → live feedback → ratings). Point a study's Source at **Replay** (a r
 the whole console end-to-end with **no headset or license**; switch to **LSL** or **Cortex** for a
 live headset — nothing else changes.
 
-The headless engine is also runnable directly (parity with the console):
+The headless engine is also runnable directly (parity with the console), from `mindwear/`:
 ```bash
-python mindwear/session_engine.py --source replay \
-       --replay mindwear/testdata/dmnelf005_feedback_run-01_250Hz.fif --speed 0 \
+uv run python session_engine.py --source replay \
+       --replay testdata/dmnelf005_feedback_run-01_250Hz.fif --speed 0 \
        --subject P001 --calib-sec 12 --rest-sec 6 --feedback-sec 12
 ```
 
@@ -77,9 +80,9 @@ rising when CEN > DMN, hits reset the ball + shrink the circle, 30 s +/Relax bas
 sliders, per-volume CSV. MURFI is swapped for `EEGActivationCommunicator` (drop-in: same
 `update()` / `get_roi_activation('cen'|'dmn', frame)` interface, backed by our decoder).
 ```bash
-python eeg_balltask.py --participant rtbpd001 --run 1 --feedback Feedback --source cortex
+uv run python eeg_balltask.py --participant rtbpd001 --run 1 --feedback Feedback --source cortex
 # offline dry-run of the pipeline (needs PsychoPy for the window):
-python eeg_balltask.py --participant test --source replay --replay testdata/…_250Hz.fif \
+uv run python eeg_balltask.py --participant test --source replay --replay testdata/…_250Hz.fif \
                        --run-sec 60 --baseline-sec 6 --windowed
 ```
 `--scale-factor` tunes ball speed (default 10; tune in a pilot since EEG activation units differ
@@ -87,15 +90,11 @@ from MURFI's).
 
 **Simple bars** — `run_nf.py` + `feedback_psychopy.py` (thermometer bars) for a minimal display:
 ```bash
-python run_nf.py --source cortex --subject P001 --calibrate --feedback psychopy
+uv run python run_nf.py --source cortex --subject P001 --calibrate --feedback psychopy
 ```
 
 ## Setup
-```bash
-pip install websocket-client pyyaml numpy scipy    # core + Cortex
-pip install pylsl        # optional: EmotivPRO LSL path
-pip install psychopy     # feedback display (Phase 4)
-```
+Python deps are handled by `uv sync` (see Install above). Remaining one-time setup:
 1. Install **EmotivPRO / Emotiv Launcher** and pair the EPOC X (+ USB dongle). Raw EEG needs a
    raw-data license / EmotivPRO subscription.
 2. Create an app at https://www.emotiv.com/developer → copy `credentials.example.yaml` to
@@ -104,9 +103,9 @@ pip install psychopy     # feedback display (Phase 4)
 
 ## Connect first (Phase 1)
 ```bash
-python connect_test.py --source cortex --seconds 8     # live EPOC X (approve app on first run)
-python connect_test.py --source lsl                    # EmotivPRO LSL outlet
-python connect_test.py --source replay --replay eeg.fif --speed 0   # no hardware, recorded EEG
+uv run python connect_test.py --source cortex --seconds 8   # live EPOC X (approve app on first run)
+uv run python connect_test.py --source lsl                  # EmotivPRO LSL outlet
+uv run python connect_test.py --source replay --replay eeg.fif --speed 0   # no hardware, recorded EEG
 ```
 Prints sample rate, channel list, per-channel RMS and a poor-contact (flat-line) check — re-wet the
 felt sensors on any channel flagged ⚠ before recording.
@@ -136,12 +135,11 @@ exchanged over a lower USB layer not visible via HID feature reports), so the ol
 → Remaining unlicensed option, not yet attempted: USB packet capture (Wireshark + USBPcap) of an
   EmotivPRO session to look for a key-exchange at the control-transfer level.
 
-**Running these probes (macOS, `mindwear` conda env):**
+**Running these probes (macOS):**
 ```bash
-conda activate mindwear
-pip install hid pycryptodome   # brew install hidapi if not already present
-DYLD_LIBRARY_PATH=/opt/homebrew/lib python decode_probe.py --n 400
-DYLD_LIBRARY_PATH=/opt/homebrew/lib python probe_feature_report.py
+uv add hid pycryptodome   # brew install hidapi if not already present
+DYLD_LIBRARY_PATH=/opt/homebrew/lib uv run python decode_probe.py --n 400
+DYLD_LIBRARY_PATH=/opt/homebrew/lib uv run python probe_feature_report.py
 ```
 `DYLD_LIBRARY_PATH` is required — Homebrew's `libhidapi.dylib` lives in `/opt/homebrew/lib`, which
 isn't on the default dylib search path. Also note: the current PyPI `hid` package (1.0.9) uses the

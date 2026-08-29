@@ -54,7 +54,8 @@ def main():
     print(f"[test_replay] {a.sub} run{a.run}: sfreq={src.sfreq} Hz, emitted {len(cen)} TR decodes "
           f"(finite {np.isfinite(online['CEN']).sum()})")
 
-    z = np.load(HERE.parent / "fsnr_eeg" / "results" / "cen_ceiling" / f"cenmean_dmnelf_{a.sub}.npz",
+    FP = HERE.parents[1] / "dmnelf" / "analysis" / "fingerprint"  # sibling dmnelf repo checkout
+    z = np.load(FP / "fsnr_eeg" / "results" / "cen_ceiling" / f"cenmean_dmnelf_{a.sub}.npz",
                 allow_pickle=True)
     obs_cen = np.asarray(z[f"run{a.run}"], float); obs_dmn = np.asarray(z[f"run{a.run}_dmn"], float)
     obs = {"CEN": obs_cen, "DMN": obs_dmn, "PDA": obs_cen - obs_dmn}
