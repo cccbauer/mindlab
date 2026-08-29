@@ -33,6 +33,7 @@ HEADSET_PRESETS: dict[str, dict[str, str]] = {
     "epocx":    {"label": "Emotiv EPOC X (14-ch)",   "source": "lsl", "montage": "epoc12"},
     "epocflex": {"label": "Emotiv EPOC Flex (32-ch)", "source": "lsl", "montage": "cap31"},
     "bp32":     {"label": "Brain Products (32-ch)",   "source": "lsl", "montage": "cap31"},
+    "replay":   {"label": "Test recording — Replay (no hardware)", "source": "replay", "montage": "epoc12"},
 }
 
 # Protocol templates. mbNF = mindfulness-based NF (veridical feedback); R-mbNF adds per-run

@@ -58,6 +58,11 @@ class StudyWizard:
                 ft.Radio(value="epoc_dual", label=MONTAGE_PRESETS["epoc_dual"]["label"]),
             ], spacing=st.GAP_XS))
 
+        # 1c — replay path: only applies when the headset above is "Test recording — Replay".
+        self.f_replay_path = ft.TextField(
+            label="Replay .fif path", value="testdata/dmnelf005_feedback_run-01_250Hz.fif",
+            hint_text="Path to a recorded .fif, relative to mindwear/ or absolute")
+
         # 2 — protocol
         self.f_protocol = ft.RadioGroup(
             value="mbNF",
@@ -100,7 +105,7 @@ class StudyWizard:
                             st.caption("Always included: contact-quality check + calibration "
                                        "(rest / self-reference / flanker cycles).", italic=False)],
                            spacing=st.GAP_SM),
-            padding=ft.padding.symmetric(vertical=st.GAP_XS))
+            padding=ft.Padding.symmetric(vertical=st.GAP_XS))
 
         body = ft.Column([
             card("Study", self.f_name, self.f_desc,
@@ -114,6 +119,10 @@ class StudyWizard:
                             "own zero-shot LOSO (r=0.080/0.058) in the same validated procedure; "
                             "PDA is derived as CEN−DMN rather than independently decoded."),
                  self.f_decoder_variant),
+            card("1c · Replay path",
+                 st.caption("Only applies when the headset above is \"Test recording — Replay\"; "
+                            "ignored for real headsets (which stream live over LSL)."),
+                 self.f_replay_path),
             card("2 · Protocol",
                  always,
                  self.f_protocol,
@@ -170,6 +179,7 @@ class StudyWizard:
         cfg["subjects"] = {"basename": (self.f_basename.value or "sub").strip(),
                            "n_subjects": int(self._num(self.f_nsubj, 1))}
         cfg["source"]["type"] = preset["source"]
+        cfg["source"]["replay_path"] = (self.f_replay_path.value or "").strip()
         montage = self.f_decoder_variant.value if headset == "epocx" else preset["montage"]
         cfg["decoder"]["montage"] = montage
         cfg["decoder"]["model_path"] = ""

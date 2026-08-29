@@ -94,7 +94,7 @@ class SessionRunner:
     def build(self) -> ft.Control:
         self.phase_chip = ft.Container(
             content=ft.Text("idle", size=st.CAPTION, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
-            padding=ft.padding.symmetric(vertical=4, horizontal=12), border_radius=20, bgcolor=st.NEUTRAL)
+            padding=ft.Padding.symmetric(vertical=4, horizontal=12), border_radius=20, bgcolor=st.NEUTRAL)
         self.status = ft.Text("Ready.", size=st.BODY, color=st.MUTED)
         self.log = ft.ListView(spacing=2, auto_scroll=True, height=140)
         self.csv_text = st.caption("")
