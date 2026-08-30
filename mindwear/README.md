@@ -36,7 +36,8 @@ live EmotivPRO outlet, Replay for a recorded `.fif`, or Cortex with a raw-EEG li
 
 ## Status — all phases built & validated offline
 - **Phase 1 — connection** ✅ `cortex.py` · `sources.py` · `connect_test.py` (smoke-tested)
-- **Phase 2 — frozen decoder** ✅ `export_model.py` → `model/efp_epoc_model.npz` (CEN+DMN ridge, EPOC-12)
+- **Phase 2 — frozen decoder** ✅ `export_model.py` → `model/efp_epoc_model.npz` (CEN+DMN ridge, EPOC-12,
+  n=19 as of 2026-08-30; prior n=17 version kept as `model/efp_epoc_model_n17_backup.npz`)
 - **Phase 3 — real-time engine** ✅ `rt_features.py` · `decoder.py` · `calibration.py` — end-to-end
   replay validates online CEN↔BOLD r=+0.27, DMN +0.23 (`test_replay.py`)
 - **Phase 4 — feedback + orchestrator** ✅ `feedback_psychopy.py` (MURFI-style red bars + blue target)
