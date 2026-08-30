@@ -151,7 +151,8 @@ class MindWearApp:
 
         title = f"Compare fMRI vs EPOC — {name}" if is_cmp else f"Start session — {name}"
         note = (st.caption("Participant must have an observed-BOLD file "
-                           "(fsnr_eeg/results/cen_ceiling/cenmean_*_<id>.npz), e.g. dmnelf005.")
+                           "(../dmnelf/analysis/fingerprint/efp_epoc/cen_mean_cache/"
+                           "cenmean_*_<id>.npz), e.g. dmnelf005.")
                 if is_cmp else st.caption("Runs the live NF session on this study's source."))
         fields = [pid, run, note] if is_cmp else [pid, run, session, note]
         btn = ft.FilledButton("Compare" if is_cmp else "Start",

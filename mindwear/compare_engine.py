@@ -6,7 +6,8 @@ Drives a two-panel ball-task comparison: the SAME recorded DMNELF/rtBPD run prod
 tracks in lockstep —
 
   * BOLD  : the observed scanner CEN/DMN timeseries (the ground truth the decoder was validated
-            against; loaded from fsnr_eeg/results/cen_ceiling/cenmean_*_<subject>.npz).
+            against; loaded from ../dmnelf/analysis/fingerprint/efp_epoc/cen_mean_cache/
+            cenmean_*_<subject>.npz).
   * EPOC  : CEN/DMN from the frozen EFP decoder run over the recorded EEG (the portable-headset
             estimate), via the SAME real-time path used live (ReplaySource -> RTFeatureExtractor
             -> Decoder).
@@ -28,8 +29,8 @@ from typing import Callable, Optional
 import numpy as np
 
 HERE = Path(__file__).resolve().parent
-FP = HERE.parent                       # analysis/fingerprint
-CEN_CEILING = FP / "fsnr_eeg" / "results" / "cen_ceiling"
+FP = HERE.parents[1] / "dmnelf" / "analysis" / "fingerprint"  # sibling dmnelf repo checkout
+CEN_CEILING = FP / "efp_epoc" / "cen_mean_cache"
 DEFAULT_MODEL = HERE / "model" / "efp_epoc_model.npz"
 
 

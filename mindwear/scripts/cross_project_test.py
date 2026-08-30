@@ -12,7 +12,7 @@ DATA = NF.parents[1] / "dmnelf" / "data"
 sys.path.insert(0, str(NF)); sys.path.insert(0, str(FP/"efp_meirhasson"/"scripts"))
 from stockwell import stockwell_power
 import mne
-CEN_DIR = FP/"fsnr_eeg/results/cen_ceiling"; BASELINE_TR,HRF_DROP=25,5
+CEN_DIR = FP/"efp_epoc/cen_mean_cache"; BASELINE_TR,HRF_DROP=25,5
 
 m=np.load(NF/"model"/"efp_epoc_model.npz",allow_pickle=True)
 chans=list(m["channels"]); n_bands=int(m["n_bands"]); n_delays=int(m["n_delays"]); tr=float(m["tr"])

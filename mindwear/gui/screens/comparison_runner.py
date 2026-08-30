@@ -140,7 +140,8 @@ class ComparisonRunner:
         # warn early if the BOLD file is missing for this subject
         if find_bold_npz(self.participant) is None:
             self.status.value = (f"No observed-BOLD file for '{self.participant}'. "
-                                 "Comparison needs fsnr_eeg/results/cen_ceiling/cenmean_*_<subject>.npz")
+                                 "Comparison needs ../dmnelf/analysis/fingerprint/efp_epoc/"
+                                 "cen_mean_cache/cenmean_*_<subject>.npz")
             self.status.color = st.WARNING
 
         return ft.Column([header, body], spacing=0, expand=True)
