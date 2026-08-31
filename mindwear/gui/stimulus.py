@@ -96,12 +96,13 @@ class BallPanel:
     """
 
     def __init__(self, win, cx: float, aspect, tr_to_frame: float, scale_factor: float = 10.0,
-                 title: str | None = None):
+                 title: str | None = None, smoothing_alpha: float = 0.25):
         from psychopy import visual
 
         self.cx = cx
         self.tr_to_frame = tr_to_frame
         self.scale = scale_factor
+        self.smoothing_alpha = smoothing_alpha
         self.circles = {}
         for i, roi in enumerate(ROI_NAMES):
             c = visual.Circle(win, pos=(cx, POSITIONS[i] / 3.0), radius=0.15, fillColor=None,
@@ -117,11 +118,22 @@ class BallPanel:
         self.activity = 0.0
         self.outlier = False
         self.last_tr = -1
+        self._cen_s = None   # EMA smoothing state -- display only, see BallPanel.on_tr
+        self._dmn_s = None
 
     def on_tr(self, cen: float, dmn: float, tr: int) -> None:
         if tr == self.last_tr or not (np.isfinite(cen) and np.isfinite(dmn)):
             return
         self.last_tr = tr
+        # Display-only EMA smoothing of the incoming (already z-scored) cen/dmn
+        # values, applied identically to both the BOLD and EPOC panels so
+        # neither track is favored. Does not touch compare_engine.py's
+        # normalization or corr_pda -- that statistic stays computed on the
+        # raw, unsmoothed tracks. See plan: ok-so-then-lets-gentle-star.md.
+        a = self.smoothing_alpha
+        self._cen_s = cen if self._cen_s is None else a * cen + (1 - a) * self._cen_s
+        self._dmn_s = dmn if self._dmn_s is None else a * dmn + (1 - a) * self._dmn_s
+        cen, dmn = self._cen_s, self._dmn_s
         roi_vals = [cen, dmn]
         self.outlier = np.nanmax(np.abs(roi_vals)) > PDA_OUTLIER_THRESHOLD
         hi = int(np.nanargmax(roi_vals))
@@ -148,11 +160,16 @@ class BallPanel:
         self.title.draw()
 
 
-def run_dual_ball(engine, stop_event: threading.Event, scale_factor: float = 10.0) -> None:
+def run_dual_ball(engine, stop_event: threading.Event, scale_factor: float = 10.0,
+                  smoothing_alpha: float = 0.25) -> None:
     """Two ball panels in one window: left = fMRI(BOLD), right = EPOC(EEG decoder), synced per TR.
 
     *engine* is a :class:`mindwear.compare_engine.ComparisonEngine` exposing ``latest()`` →
     CompareUpdate, ``is_running()``, ``tr``, ``corr_pda``, ``subject``, ``run``.
+
+    *smoothing_alpha* is a display-only EMA applied identically to both panels
+    (see ``BallPanel.on_tr``) to reduce per-TR jitter in the ball motion; it
+    does not affect ``engine.corr_pda`` or any other reported statistic.
     """
     from psychopy import core, event, visual
 
@@ -162,9 +179,11 @@ def run_dual_ball(engine, stop_event: threading.Event, scale_factor: float = 10.
         tr_to_frame = float(engine.tr or 1.2) / frame_dur
         aspect = [win.size[1] / win.size[0], 1]
         left = BallPanel(win, cx=-0.5, aspect=aspect, tr_to_frame=tr_to_frame,
-                         scale_factor=scale_factor, title="fMRI  (BOLD)")
+                         scale_factor=scale_factor, title="fMRI  (BOLD)",
+                         smoothing_alpha=smoothing_alpha)
         right = BallPanel(win, cx=0.5, aspect=aspect, tr_to_frame=tr_to_frame,
-                          scale_factor=scale_factor, title="EPOC  (EEG decoder)")
+                          scale_factor=scale_factor, title="EPOC  (EEG decoder)",
+                          smoothing_alpha=smoothing_alpha)
         divider = visual.Line(win, start=(0, -0.8), end=(0, 0.8), lineColor=[0.25, 0.25, 0.25], lineWidth=2)
         info = visual.TextStim(win, text="", pos=(0, -0.9), height=0.045, color="white")
 
